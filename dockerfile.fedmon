@@ -1,0 +1,30 @@
+FROM python:3.7-slim as final
+
+RUN apt-get update
+RUN apt-get install libgomp1
+RUN apt-get install libquadmath0
+# The build stage installs everything into the virtualenv, and the final stage just copies the virtualenv over into a small image.
+RUN python -m venv /venv
+
+RUN pip install --upgrade setuptools==59.5.0 wheel
+
+
+# Do stuff on the code
+RUN mkdir /code
+WORKDIR code
+
+#install requirements
+ADD requirements_fedmon.txt /code/requirements.txt
+RUN pip install -r requirements.txt
+EXPOSE 8080
+
+ADD ./Examples/tensorflow/code/ /code/
+ADD ./FedMon/ /code/FedMon/
+
+RUN apt-get install -y iputils-ping
+
+
+
+# Copy a modified version of the client
+#ENV FL_SERVER "127.0.0.1"
+#ENV FL_DATASET "./dataset"

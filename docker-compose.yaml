@@ -1,0 +1,102 @@
+
+version: '3.7'
+services:
+
+  ui:
+    image: fedmon-jupiter
+    build:
+      context: .  # Directory containing the Dockerfile
+      dockerfile: dockerfile.notebook  # Name of the Dockerfile
+    volumes:
+      - ./FedMon/:/home/jovyan/work/FedMon/
+      - ./profile/client/:/home/jovyan/work/profile/
+      - ./data/:/home/jovyan/work/data/
+    ports:
+      - 8888:8888
+    environment:
+      - "JUPYTER_ENABLE_LAB=yes"
+      - "GRANT_SUDO=yes"
+    user: root
+
+  prometheus:
+    image: prom/prometheus:latest
+    volumes:
+      - ./configs/prometheus/:/etc/prometheus:Z
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+    ports:
+      - "9091:9090"
+
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:latest
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+    ports:
+      - 9090:8080
+    expose:
+      - 8080
+      - 9090
+
+  server:
+    image: fedmon
+    build:
+      context: .  # Directory containing the Dockerfile
+      dockerfile: dockerfile.fedmon  # Name of the Dockerfile
+    command: [ "python", "/code/server.py"]
+    environment:
+      FL_STRATEGY: FedAvg
+      FL_NUM_OF_ROUNDS: 50
+      FL_MIN_EVAL_CLIENTS: 1
+      FL_MIN_FIT_CLIENTS: 1
+      FL_MIN_AVAILABLE_CLIENTS: 1
+      FL_PROFILE_PREFIX: server
+      FL_BACKEND: tensorflow_mnist
+      FL_DATASET: MNIST
+      FL_EVAL_DATASET: "false"
+      HTTP_PROXY: 
+      HTTPS_PROXY: 
+      https_proxy: 
+      http_proxy: 
+      FL_TEST_SET_SIZE: 1000
+      FL_TRAINING_SET_SIZE: 5000
+      FL_EPOCHS: 1
+    volumes:
+      - ./profile/server/:/profile/
+      - ./data/:/data/
+    expose:
+    - 8080
+
+  client_0:
+    image: fedmon
+    build:
+      context: .  # Directory containing the Dockerfile
+      dockerfile: dockerfile.fedmon  # Name of the Dockerfile
+    depends_on:
+      - server
+    command: 'sh -c "sleep 20 && python /code/client.py"'
+    environment:
+      FL_SERVER: server
+      FL_BACKEND: tensorflow_mnist
+      FL_DATASET: MNIST
+      FL_NODES: 1
+      FL_NODE_ID: 0
+      FL_DATASET_DISTRIBUTION: flat
+      FL_DATASET_RANDOM: 'False'
+      FL_PROFILE_PREFIX: client_0
+      HTTP_PROXY: 
+      HTTPS_PROXY: 
+      https_proxy: 
+      http_proxy: 
+      FL_TRAINING_SET_SIZE: 50000
+      FL_TEST_SET_SIZE: 10000
+      FL_EPOCHS: 1
+
+    volumes:
+      - ./profile/client/:/profile/
+      - ./data/:/data/

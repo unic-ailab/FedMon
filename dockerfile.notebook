@@ -1,0 +1,11 @@
+# Use jupyter/scipy-notebook as the base image
+FROM jupyter/scipy-notebook
+
+# Set the working directory to /home/jovyan (default for jupyter/scipy-notebook)
+WORKDIR /home/jovyan
+
+# Copy the requirements.txt file into the image
+COPY requirements_notebook.txt ./requirements.txt
+
+# Install Python dependencies from requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
